@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="经济数据分析与 Python 应用：第三讲爬虫作业">
+  <title>爬虫作业｜经济数据分析与 Python 应用</title>
+  <link rel="stylesheet" href="crawler.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top"><span>PY</span>第三讲 · 爬虫作业</a>
+    <nav><a href="#books">静态页</a><a href="#population">清洗入库</a><a href="#quotes">动态页</a></nav>
+    <div class="status"><i></i>数据已完成抓取</div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="kicker">ECONOMIC DATA ANALYSIS · PYTHON</p>
+        <h1>从网页到<br><em>可用数据</em></h1>
+        <p>严格对应第三讲课件的三项实操：静态页整站抓取、百科脏数据清洗入库、JavaScript 动态内容获取。</p>
+        <div class="hero-tags"><span>仅公开教学站点</span><span>控制请求频率</span><span>完整性核验</span></div>
+      </div>
+      <div class="terminal-card">
+        <div class="terminal-head"><span></span><span></span><span></span><b>crawler_run.log</b></div>
+        <pre><code><mark>$</mark> python scrape_data.py
+[books]  page 01 → 20 rows
+[books]  page 50 → 1,000 rows  ✓
+[wiki]   cleaned → 239 rows   ✓
+[sqlite] inserted → 239 rows  ✓
+[quotes] api pages → 100 rows ✓
+
+<span>All validation checks passed.</span></code></pre>
+      </div>
+      <div class="hero-stats"><div><b>1,000</b><span>图书记录</span></div><div><b>239</b><span>人口记录</span></div><div><b>100</b><span>动态名言</span></div><div><b>0</b><span>图书缺失行</span></div></div>
+    </section>
+
+    <section id="requirements" class="requirement-strip">
+      <div><span>课件要求</span><b>按位置与属性取字段</b></div><div><span>课件要求</span><b>识别翻页规律</b></div><div><span>课件要求</span><b>清洗并类型化入库</b></div><div><span>课件要求</span><b>说明动态加载机制</b></div>
+    </section>
+
+    <section id="books" class="project light">
+      <div class="section-head"><div><p class="kicker">PROJECT 01 · STATIC PAGES</p><h2>整站图书数据整理</h2><p>遍历 <code>page-1.html</code> 至 <code>page-50.html</code>，提取书名、价格、评分、库存和详情页链接；总量与站点标注的 1,000 条一致。</p></div><div class="big-number">01</div></div>
+      <div class="result-grid four"><div><b>50</b><span>翻页数量</span></div><div><b>1,000</b><span>有效图书</span></div><div><b>£35.07</b><span>平均价格</span></div><div><b>0</b><span>缺失记录</span></div></div>
+      <div class="logic-row"><div><span>1</span><p><b>识别规律</b><small>URL 中页码递增</small></p></div><i>→</i><div><span>2</span><p><b>定位卡片</b><small>article.product_pod</small></p></div><i>→</i><div><span>3</span><p><b>清洗字段</b><small>价格、评分、链接</small></p></div><i>→</i><div><span>4</span><p><b>核验总量</b><small>1,000 行且无缺失</small></p></div></div>
+      <div class="data-panel">
+        <div class="panel-tools"><div><h3>图书完整数据表</h3><p id="booksSummary">正在载入 books.csv…</p></div><div class="controls"><input id="bookSearch" type="search" placeholder="搜索书名"><select id="ratingFilter"><option value="">全部评分</option><option value="5">5 星</option><option value="4">4 星</option><option value="3">3 星</option><option value="2">2 星</option><option value="1">1 星</option></select><a href="books.csv" download>下载 CSV</a></div></div>
+        <div class="table-scroll"><table><thead><tr><th>#</th><th>书名</th><th>价格（GBP）</th><th>评分</th><th>库存</th><th>详情</th></tr></thead><tbody id="booksBody"></tbody></table></div>
+        <div class="pagination"><button id="bookPrev">上一页</button><span id="bookPage"></span><button id="bookNext">下一页</button></div>
+      </div>
+      <div class="code-card"><div><span>关键代码</span><b>静态翻页</b></div><pre><code>for page in range(1, 51):
+    soup = BeautifulSoup(get(url(page)).text, "html.parser")
+    for card in soup.select("article.product_pod"):
+        rows.append(extract_book(card))
+    time.sleep(0.18)  # 控制频率
+assert len(rows) == 1000</code></pre></div>
+    </section>
+
+    <section id="population" class="project dark">
+      <div class="section-head"><div><p class="kicker">PROJECT 02 · DIRTY DATA</p><h2>清洗、入库与排名</h2><p>从 Wikipedia 公开人口表提取国家/地区、人口和世界占比；去除脚注、千分位符与不可见空格，转换数值类型后写入 SQLite，再查询人口前十。</p></div><div class="big-number">02</div></div>
+      <div class="clean-pipeline"><div><small>RAW</small><b>1,429,404,000 [a]</b><span>带逗号、脚注和空格</span></div><i>→</i><div class="active"><small>CLEAN</small><b>1429404000</b><span>INTEGER</span></div><i>→</i><div><small>DATABASE</small><b>SQLite</b><span>可排序、求和、查询</span></div></div>
+      <div class="analysis-grid"><div class="chart-card"><h3>人口前十</h3><div id="populationChart"></div></div><div class="rank-card"><table><thead><tr><th>排名</th><th>国家/地区</th><th>人口</th><th>占比</th></tr></thead><tbody id="populationTop10"></tbody></table></div></div>
+      <div class="data-panel dark-panel">
+        <div class="panel-tools"><div><h3>清洗后完整数据表</h3><p id="populationSummary">正在载入 population_clean.csv…</p></div><div class="controls"><input id="populationSearch" type="search" placeholder="搜索国家/地区"><a href="population_clean.csv" download>下载 CSV</a><a href="population.db" download>下载 SQLite</a></div></div>
+        <div class="table-scroll"><table><thead><tr><th>#</th><th>国家/地区</th><th>人口（整数）</th><th>世界占比</th></tr></thead><tbody id="populationBody"></tbody></table></div>
+        <div class="pagination"><button id="populationPrev">上一页</button><span id="populationPage"></span><button id="populationNext">下一页</button></div>
+      </div>
+      <div class="quality-grid"><div><b>缺失值规则</b><p>核心人口为空则剔除；世界占比允许为空并保留。</p></div><div><b>字段类型</b><p>国家为 TEXT，人口为 INTEGER，占比为 REAL。</p></div><div><b>结果验证</b><p>239 行成功入库；人口列可排序、求和和取前十。</p></div></div>
+    </section>
+
+    <section id="quotes" class="project mint-section">
+      <div class="section-head"><div><p class="kicker">PROJECT 03 · DYNAMIC CONTENT</p><h2>动态页的内容从哪里来？</h2><p>先理解 JavaScript 渲染，再通过接口获取结构化数据；同时说明普通请求、浏览器渲染和无限滚动之间的差别。</p></div><div class="big-number">03</div></div>
+      <div class="dynamic-map"><div><span>① 初始 HTML</span><b>空房间</b><small>只有页面骨架和 script</small></div><i>→</i><div class="api"><span>② XHR / Fetch</span><b>/api/quotes?page=n</b><small>接口返回 JSON</small></div><i>→</i><div><span>③ 浏览器渲染</span><b>填入名言</b><small>scroll 触发下一页</small></div></div>
+      <blockquote><b>一句话说明：</b>浏览器会执行 JavaScript，再通过接口取得数据并填入页面；普通 <code>requests.get(url).text</code> 不执行脚本，因此可能只能拿到页面骨架。</blockquote>
+      <div class="data-panel">
+        <div class="panel-tools"><div><h3>动态名言完整数据表</h3><p id="quotesSummary">正在载入 quotes.csv…</p></div><div class="controls"><input id="quoteSearch" type="search" placeholder="搜索名言或作者"><a href="quotes.csv" download>下载 CSV</a></div></div>
+        <div class="quote-wall" id="quoteWall"></div>
+        <div class="pagination"><button id="quotePrev">上一页</button><span id="quotePage"></span><button id="quoteNext">下一页</button></div>
+      </div>
+      <div class="compare-grid"><div><b>普通 requests</b><p>只下载服务器首次返回的 HTML，不执行 JavaScript。</p></div><div><b>浏览器自动化</b><p>Playwright / Selenium 渲染页面，并可模拟滚动。</p></div><div><b>直接请求接口</b><p>在 Network 中找到 JSON 接口，效率更高、结构更清晰。</p></div></div>
+    </section>
+
+    <section class="conclusion">
+      <p class="kicker">VALIDATION</p><h2>过关标准检查</h2>
+      <div class="check-grid"><div><b>✓ 1,000 条图书</b><span>与站点总量一致</span></div><div><b>✓ 无乱码与缺失</b><span>五个字段完整</span></div><div><b>✓ 239 行入库</b><span>数字列可计算</span></div><div><b>✓ 排名结果表</b><span>输出人口前十</span></div><div><b>✓ 动态内容获取</b><span>100 条名言</span></div><div><b>✓ 加载机制说明</b><span>HTML → API → 渲染</span></div></div>
+      <p class="footnote">数据快照生成于 2026-09-29。仅抓取 books.toscrape.com、quotes.toscrape.com 与 Wikipedia 公开页面；使用延时、超时与重试，未访问登录内容或个人隐私。</p>
+    </section>
+  </main>
+  <footer><span>经济数据分析与 Python 应用 · 第三讲爬虫作业</span><a href="#top">回到顶部 ↑</a></footer>
+  <script src="app.js"></script>
+</body>
+</html>
